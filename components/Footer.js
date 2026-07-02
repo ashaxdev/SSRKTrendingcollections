@@ -32,7 +32,7 @@ export default function Footer() {
 
           <p className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>
             <MapPin size={13} className="shrink-0 mt-0.5" style={{ color: '#C9A84C' }} />
-            Salem, Tamil Nadu
+            No.20 , Vasantham Nagar ,Thimmavaram , Chengalpet -603101
           </p>
 
           <span
@@ -128,7 +128,7 @@ export default function Footer() {
             className="flex items-center gap-1.5 text-[11px] transition-colors"
             style={{ color: 'rgba(255,255,255,0.55)' }}
           >
-            Designed by
+            Designed and Developed by
             <span
               className="font-extrabold text-[9px] tracking-widest uppercase px-2.5 py-1 rounded-full"
               style={{ background: '#C9A84C', color: '#3a1a00' }}
