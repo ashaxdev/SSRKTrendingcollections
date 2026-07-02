@@ -61,13 +61,13 @@ export default function Navbar() {
             <Link href="/" className="flex items-center gap-2.5 shrink-0">
               <div
                 className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden"
-                style={{
-                  border: '2.5px solid #8B0000',
-                  outline: '1.5px solid #C9A84C',
-                  outlineOffset: '2px',
-                }}
+                // style={{
+                //   border: '2.5px solid #8B0000',
+                //   outline: '1.5px solid #C9A84C',
+                //   outlineOffset: '2px',
+                // }}
               >
-                <Image src="/logo.png" alt="SSRK Trending Collections" fill className="object-contain" />
+                <Image src="/logo.png" alt="SSRK Trending Collections" fill className="object-cover scale-125" />
               </div>
               <div className="hidden sm:flex flex-col leading-tight">
                 <span
