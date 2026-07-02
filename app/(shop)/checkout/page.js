@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import toast from 'react-hot-toast';
-import { useCart } from '@/components/CartContext';
+import { useCart, cartKey } from '@/components/CartContext';
 import { formatINR } from '@/lib/utils';
 
 // SSRK Brand Colors
@@ -59,7 +59,7 @@ function SSRKInput({ placeholder, type = 'text', value, onChange, autoComplete, 
 }
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, updateQty, removeItem, setItemStock } = useCart();
   const router = useRouter();
   const [form, setForm] = useState({
     name: '', phone: '', email: '',
@@ -69,6 +69,7 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('razorpay');
   const [submitting, setSubmitting] = useState(false);
+  const [checkingStock, setCheckingStock] = useState(false);
 
   const [shipping, setShipping] = useState(null);
   const [freeShippingAbove, setFreeShippingAbove] = useState(null);
@@ -115,13 +116,72 @@ export default function CheckoutPage() {
     else { setDiscount(0); toast.error(data.message); }
   }
 
+  /**
+   * Re-checks every cart line against live DB stock right before payment.
+   * Returns true if the cart is clean and it's safe to proceed; false if
+   * anything had to be removed/adjusted (caller should stop and let the
+   * shopper review the updated cart before retrying).
+   */
+  async function validateStockBeforeOrder() {
+    setCheckingStock(true);
+    try {
+      const res = await fetch('/api/cart/validate-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            size: i.size,
+            qty: i.qty,
+            name: i.name,
+          })),
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Could not verify stock, please try again');
+        return false;
+      }
+
+      if (data.valid) return true;
+
+      data.issues.forEach((issue) => {
+        const key = cartKey(issue);
+        if (issue.reason === 'unavailable' || issue.reason === 'out_of_stock') {
+          toast.error(`${issue.name || 'An item'} is out of stock and was removed from your cart`);
+          removeItem(key);
+        } else if (issue.reason === 'insufficient_stock') {
+          toast.error(`Only ${issue.availableStock} left of ${issue.name || 'an item'} — quantity adjusted`);
+          updateQty(key, issue.availableStock);
+          setItemStock(key, issue.availableStock);
+        }
+      });
+
+      return false;
+    } catch {
+      toast.error('Could not verify stock, please try again');
+      return false;
+    } finally {
+      setCheckingStock(false);
+    }
+  }
+
   async function placeOrder() {
     if (!form.name || !form.phone || !form.line1 || !form.city || !form.pincode) {
       toast.error('Please fill all required fields'); return;
     }
     if (items.length === 0) { toast.error('Your cart is empty'); return; }
     if (shipping === null) { toast.error('Shipping is still being calculated, please wait'); return; }
+
     setSubmitting(true);
+
+    const stockOk = await validateStockBeforeOrder();
+    if (!stockOk) {
+      setSubmitting(false);
+      return;
+    }
 
     const orderItems = items.map((i) => ({
       productId: i.productId, variantId: i.variantId, size: i.size, qty: i.qty
@@ -162,7 +222,11 @@ export default function CheckoutPage() {
             });
             const finalData = await finalRes.json();
             if (finalRes.ok) { clearCart(); router.push(`/order-success/${finalData.order._id}`); }
-            else { toast.error(finalData.error || 'Could not save order'); }
+            else {
+              // Order creation itself failed (e.g. a server-side stock race
+              // lost the last unit between our check and now).
+              toast.error(finalData.error || 'Could not save order');
+            }
             setSubmitting(false);
           },
           modal: { ondismiss: () => setSubmitting(false) }
@@ -190,6 +254,8 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   }
+
+  const placeOrderDisabled = submitting || shippingLoading || checkingStock || shipping === null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
@@ -386,24 +452,24 @@ export default function CheckoutPage() {
           {/* Place Order CTA */}
           <button
             onClick={placeOrder}
-            disabled={submitting || shippingLoading || shipping === null}
+            disabled={placeOrderDisabled}
             className="w-full py-3 font-bold text-sm sm:text-base transition-all"
             style={{
-              background: (submitting || shippingLoading || shipping === null) ? '#b05050' : '#8B0000',
+              background: placeOrderDisabled ? '#b05050' : '#8B0000',
               color: '#fff',
               border: '2px solid #C9A84C',
               borderRadius: '8px',
               fontFamily: 'Georgia, serif',
               fontSize: '15px',
               letterSpacing: '0.5px',
-              cursor: (submitting || shippingLoading || shipping === null) ? 'not-allowed' : 'pointer',
-              opacity: (submitting || shippingLoading || shipping === null) ? 0.6 : 1,
+              cursor: placeOrderDisabled ? 'not-allowed' : 'pointer',
+              opacity: placeOrderDisabled ? 0.6 : 1,
             }}
-            onMouseEnter={(e) => { if (!submitting && !shippingLoading && shipping !== null) e.currentTarget.style.background = '#6e0000'; }}
-            onMouseLeave={(e) => { if (!submitting && !shippingLoading && shipping !== null) e.currentTarget.style.background = '#8B0000'; }}
+            onMouseEnter={(e) => { if (!placeOrderDisabled) e.currentTarget.style.background = '#6e0000'; }}
+            onMouseLeave={(e) => { if (!placeOrderDisabled) e.currentTarget.style.background = '#8B0000'; }}
           >
             {submitting
-              ? 'Placing Order…'
+              ? (checkingStock ? 'Checking stock…' : 'Placing Order…')
               : shippingLoading
                 ? 'Calculating shipping…'
                 : total !== null

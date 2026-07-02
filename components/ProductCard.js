@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Star, Heart, ShoppingBag, Zap } from 'lucide-react';
 import { formatINR } from '@/lib/utils';
+import { getDefaultAvailableSizeEntry, getVariantTotalStock } from '@/lib/stock';
 import { useCart } from './CartContext';
 import { useWishlist } from './WhishlistContext';
 import { useState } from 'react';
@@ -27,8 +28,15 @@ export default function ProductCard({ product }) {
   const wished = isWishlisted(product._id);
   const router = useRouter();
 
-  const totalStock = variant?.sizes?.reduce((s, sz) => s + (sz.stock || 0), 0);
-  const lowStock = typeof totalStock === 'number' && totalStock > 0 && totalStock <= 5;
+  // Default to the first size that actually has stock; fall back to the
+  // first size entry if everything is sold out (so we can still show 0).
+  const defaultSizeEntry = getDefaultAvailableSizeEntry(variant);
+  const defaultSize = defaultSizeEntry?.size || 'Free Size';
+  const defaultSizeStock = defaultSizeEntry?.stock || 0;
+
+  const totalStock = getVariantTotalStock(variant);
+  const outOfStock = totalStock <= 0;
+  const lowStock = !outOfStock && totalStock <= 5;
 
   function buildItem() {
     return {
@@ -38,22 +46,30 @@ export default function ProductCard({ product }) {
       name: product.name,
       image,
       color: variant?.color || '-',
-      size: variant?.sizes?.[0]?.size || 'Free Size',
+      size: defaultSize,
       price,
       qty: 1,
+      stock: defaultSizeStock,
     };
   }
 
   function handleAddToCart(e) {
     e.preventDefault();
+    if (outOfStock || defaultSizeStock <= 0) {
+      toast.error('This item is currently out of stock');
+      return;
+    }
     setAdding(true);
     addItem(buildItem());
-    toast.success('Added to cart!');
     setTimeout(() => setAdding(false), 800);
   }
 
   function handleBuyNow(e) {
     e.preventDefault();
+    if (outOfStock || defaultSizeStock <= 0) {
+      toast.error('This item is currently out of stock');
+      return;
+    }
     addItem(buildItem());
     router.push('/checkout');
   }
@@ -89,12 +105,12 @@ export default function ProductCard({ product }) {
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className={`object-cover transition-transform duration-500 ${outOfStock ? 'grayscale opacity-70' : 'group-hover:scale-105'}`}
           />
 
           {/* Badges */}
           <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 flex flex-col gap-1">
-            {discountPct > 0 && (
+            {discountPct > 0 && !outOfStock && (
               <span
                 className="text-white text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
                 style={{ background: '#8B0000', fontFamily: 'sans-serif' }}
@@ -109,6 +125,14 @@ export default function ProductCard({ product }) {
               >
                 ⭐ <span className="hidden sm:inline">BESTSELLER</span>
                 <span className="sm:hidden">BEST</span>
+              </span>
+            )}
+            {outOfStock && (
+              <span
+                className="text-white text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
+                style={{ background: '#666', fontFamily: 'sans-serif' }}
+              >
+                Out of Stock
               </span>
             )}
             {lowStock && (
@@ -195,6 +219,7 @@ export default function ProductCard({ product }) {
         {/* Add to Cart */}
         <button
           onClick={handleAddToCart}
+          disabled={outOfStock}
           className="flex-1 flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold py-1.5 sm:py-2 active:scale-95 transition-transform"
           style={{
             border: '1.5px solid #8B0000',
@@ -202,18 +227,23 @@ export default function ProductCard({ product }) {
             borderRadius: '8px',
             background: '#fff',
             fontFamily: 'sans-serif',
-            cursor: 'pointer',
+            cursor: outOfStock ? 'not-allowed' : 'pointer',
+            opacity: outOfStock ? 0.5 : 1,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#fdf5f5';
+            if (!outOfStock) e.currentTarget.style.background = '#fdf5f5';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#fff';
+            if (!outOfStock) e.currentTarget.style.background = '#fff';
           }}
         >
           <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           <span className="truncate">
-            {adding ? 'Added!' : (
+            {outOfStock ? (
+              'Sold Out'
+            ) : adding ? (
+              'Added!'
+            ) : (
               <>
                 <span className="sm:hidden">Cart</span>
                 <span className="hidden sm:inline">Add to Cart</span>
@@ -225,6 +255,7 @@ export default function ProductCard({ product }) {
         {/* Buy Now */}
         <button
           onClick={handleBuyNow}
+          disabled={outOfStock}
           className="flex-1 flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold py-1.5 sm:py-2 active:scale-95 transition-transform"
           style={{
             background: '#8B0000',
@@ -232,17 +263,18 @@ export default function ProductCard({ product }) {
             border: '1.5px solid #C9A84C',
             borderRadius: '8px',
             fontFamily: 'sans-serif',
-            cursor: 'pointer',
+            cursor: outOfStock ? 'not-allowed' : 'pointer',
+            opacity: outOfStock ? 0.5 : 1,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#6e0000';
+            if (!outOfStock) e.currentTarget.style.background = '#6e0000';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#8B0000';
+            if (!outOfStock) e.currentTarget.style.background = '#8B0000';
           }}
         >
           <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" fill="white" />
-          <span className="truncate">Buy Now</span>
+          <span className="truncate">{outOfStock ? 'Sold Out' : 'Buy Now'}</span>
         </button>
       </div>
     </div>

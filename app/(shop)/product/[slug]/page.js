@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Star, ShoppingBag, Zap, Heart, Share2, ChevronLeft, ChevronRight, Tag, Truck, RotateCcw, Shield } from 'lucide-react';
 import { formatINR } from '@/lib/utils';
+import { getSizeStock } from '@/lib/stock';
 import { useCart } from '@/components/CartContext';
 import ColorSizeSelector from '@/components/ColorSizeSelector';
 import ProductCard from '@/components/ProductCard';
@@ -47,6 +48,9 @@ export default function ProductPage() {
     ? Math.round(((activeVariant.compareAtPrice - activeVariant.price) / activeVariant.compareAtPrice) * 100)
     : 0;
 
+  const selectedSizeStock = getSizeStock(activeVariant, activeSize);
+  const sizeOutOfStock = !!activeSize && selectedSizeStock <= 0;
+
   function prevImage() { setActiveImage((i) => (i === 0 ? images.length - 1 : i - 1)); }
   function nextImage() { setActiveImage((i) => (i === images.length - 1 ? 0 : i + 1)); }
 
@@ -59,8 +63,30 @@ export default function ProductPage() {
     }
   }
 
+  function handleColorChange(v) {
+    setActiveVariant(v);
+    setActiveImage(0);
+    setActiveSize('');
+    setQty(1);
+  }
+
+  function handleSizeChange(size) {
+    setActiveSize(size);
+    const stock = getSizeStock(activeVariant, size);
+    // Clamp qty to whatever this size actually has in stock.
+    setQty((q) => (stock > 0 ? Math.min(q, stock) : 1));
+  }
+
   function handleAddToCart() {
     if (!activeSize) { toast.error('Please select a size'); return; }
+    const stock = getSizeStock(activeVariant, activeSize);
+    if (stock <= 0) { toast.error('This size is out of stock'); return; }
+    if (qty > stock) {
+      toast.error(`Only ${stock} left in stock`);
+      setQty(stock);
+      return;
+    }
+
     addItem({
       productId: product._id,
       variantId: activeVariant._id,
@@ -71,12 +97,20 @@ export default function ProductPage() {
       size: activeSize,
       price: activeVariant.price,
       qty,
+      stock,
     });
-    toast.success('Added to cart!');
   }
 
   function handleBuyNow() {
     if (!activeSize) { toast.error('Please select a size'); return; }
+    const stock = getSizeStock(activeVariant, activeSize);
+    if (stock <= 0) { toast.error('This size is out of stock'); return; }
+    if (qty > stock) {
+      toast.error(`Only ${stock} left in stock`);
+      setQty(stock);
+      return;
+    }
+
     addItem({
       productId: product._id,
       variantId: activeVariant._id,
@@ -87,6 +121,7 @@ export default function ProductPage() {
       size: activeSize,
       price: activeVariant.price,
       qty,
+      stock,
     });
     router.push('/checkout');
   }
@@ -211,9 +246,9 @@ export default function ProductPage() {
             <ColorSizeSelector
               variants={product.variants}
               activeVariant={activeVariant}
-              onColorChange={(v) => { setActiveVariant(v); setActiveImage(0); setActiveSize(''); }}
+              onColorChange={handleColorChange}
               activeSize={activeSize}
-              onSizeChange={setActiveSize}
+              onSizeChange={handleSizeChange}
             />
           </div>
 
@@ -223,23 +258,37 @@ export default function ProductPage() {
             <div className="flex items-center border border-brand-ink/15 rounded-full">
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center text-lg font-medium">−</button>
               <span className="w-8 text-center text-sm font-semibold">{qty}</span>
-              <button onClick={() => setQty((q) => q + 1)} className="w-9 h-9 flex items-center justify-center text-lg font-medium">+</button>
+              <button
+                onClick={() => setQty((q) => (selectedSizeStock > 0 ? Math.min(selectedSizeStock, q + 1) : q + 1))}
+                disabled={!!activeSize && qty >= selectedSizeStock}
+                className="w-9 h-9 flex items-center justify-center text-lg font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
             </div>
+            {!!activeSize && selectedSizeStock > 0 && selectedSizeStock <= 5 && (
+              <span className="text-xs font-semibold text-brand-magenta">Only {selectedSizeStock} left!</span>
+            )}
+            {sizeOutOfStock && (
+              <span className="text-xs font-semibold text-red-600">Out of stock</span>
+            )}
           </div>
 
           {/* CTAs */}
           <div className="flex flex-col gap-3 mt-6">
             <button
               onClick={handleBuyNow}
-              className="w-full flex items-center justify-center gap-2 bg-brand-magenta hover:bg-brand-magenta/90 active:scale-95 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-magenta/25"
+              disabled={sizeOutOfStock}
+              className="w-full flex items-center justify-center gap-2 bg-brand-magenta hover:bg-brand-magenta/90 active:scale-95 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-magenta/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
-              <Zap size={18} fill="white" /> Buy Now
+              <Zap size={18} fill="white" /> {sizeOutOfStock ? 'Out of Stock' : 'Buy Now'}
             </button>
             <button
               onClick={handleAddToCart}
-              className="w-full flex items-center justify-center gap-2 border-2 border-brand-magenta text-brand-magenta font-semibold py-3 rounded-xl hover:bg-brand-magenta/5 active:scale-95 transition-all"
+              disabled={sizeOutOfStock}
+              className="w-full flex items-center justify-center gap-2 border-2 border-brand-magenta text-brand-magenta font-semibold py-3 rounded-xl hover:bg-brand-magenta/5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
-              <ShoppingBag size={17} /> Add to Cart
+              <ShoppingBag size={17} /> {sizeOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </button>
           </div>
 

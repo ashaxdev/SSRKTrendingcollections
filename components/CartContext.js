@@ -10,6 +10,7 @@ const STORAGE_KEY = 'lb_cart_v1';
 const CRIMSON = '#8B1A1A';
 const GOLD    = '#C9A84C';
 const GREEN   = '#2D6A2D';
+const RED     = '#c0392b';
 
 const toastBase = {
   duration: 2500,
@@ -57,7 +58,16 @@ export function CartProvider({ children }) {
     if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, loaded]);
 
+  /**
+   * Adds an item to the cart, respecting stock limits.
+   * `item.stock` should be the max available stock for that
+   * productId/variantId/size combo (pass Infinity or omit if unknown,
+   * though callers should always know it when possible).
+   */
   const addItem = useCallback((item) => {
+    let blocked = false;
+    let clamped = false;
+
     setItems((prev) => {
       const idx = prev.findIndex(
         (i) =>
@@ -66,13 +76,52 @@ export function CartProvider({ children }) {
           i.size === item.size &&
           i.comboId === item.comboId
       );
+
+      const stockLimit = typeof item.stock === 'number' ? item.stock : Infinity;
+
       if (idx > -1) {
+        const currentQty = prev[idx].qty;
+
+        if (currentQty >= stockLimit) {
+          blocked = true;
+          return prev;
+        }
+
+        const desiredQty = currentQty + item.qty;
+        const finalQty = Math.min(desiredQty, stockLimit);
+        if (finalQty < desiredQty) clamped = true;
+
         const copy = [...prev];
-        copy[idx].qty += item.qty;
+        copy[idx] = { ...copy[idx], qty: finalQty, stock: stockLimit };
         return copy;
       }
-      return [...prev, item];
+
+      if (stockLimit <= 0) {
+        blocked = true;
+        return prev;
+      }
+
+      const finalQty = Math.min(item.qty, stockLimit);
+      if (finalQty < item.qty) clamped = true;
+      return [...prev, { ...item, qty: finalQty }];
     });
+
+    if (blocked) {
+      ssrkToast('Sorry, this item is out of stock', {
+        icon: '⚠️',
+        style: { ...toastBase.style, borderLeftColor: RED },
+      });
+      return;
+    }
+
+    if (clamped) {
+      ssrkToast('Only limited stock available — quantity adjusted', {
+        icon: '⚠️',
+        style: { ...toastBase.style, borderLeftColor: GOLD },
+      });
+      return;
+    }
+
     ssrkToast('Added to cart', {
       icon: '✓',
       style: { ...toastBase.style, borderLeftColor: CRIMSON },
@@ -81,7 +130,18 @@ export function CartProvider({ children }) {
 
   const updateQty = useCallback((key, qty) => {
     setItems((prev) =>
-      prev.map((i) => (cartKey(i) === key ? { ...i, qty: Math.max(1, qty) } : i))
+      prev.map((i) => {
+        if (cartKey(i) !== key) return i;
+        const max = typeof i.stock === 'number' ? i.stock : Infinity;
+        const nextQty = Math.max(1, Math.min(qty, max));
+        if (qty > max) {
+          ssrkToast(`Only ${max} left in stock`, {
+            icon: '⚠️',
+            style: { ...toastBase.style, borderLeftColor: GOLD },
+          });
+        }
+        return { ...i, qty: nextQty };
+      })
     );
   }, []);
 
@@ -91,6 +151,21 @@ export function CartProvider({ children }) {
       icon: '🗑️',
       style: { ...toastBase.style, borderLeftColor: GOLD },
     });
+  }, []);
+
+  /**
+   * Updates the known stock ceiling for a cart line without changing qty,
+   * clamping qty down if it now exceeds the new stock. Used after a
+   * server-side stock re-check (e.g. at checkout).
+   */
+  const setItemStock = useCallback((key, stock) => {
+    setItems((prev) =>
+      prev.map((i) => {
+        if (cartKey(i) !== key) return i;
+        const nextQty = Math.max(1, Math.min(i.qty, stock));
+        return { ...i, stock, qty: nextQty };
+      })
+    );
   }, []);
 
   const clearCart = useCallback(() => {
@@ -105,7 +180,18 @@ export function CartProvider({ children }) {
   const count    = items.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, updateQty, removeItem, clearCart, subtotal, count }}>
+    <CartContext.Provider
+      value={{
+        items,
+        addItem,
+        updateQty,
+        removeItem,
+        setItemStock,
+        clearCart,
+        subtotal,
+        count,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
