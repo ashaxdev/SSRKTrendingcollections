@@ -110,7 +110,7 @@ export default function Footer() {
             <p><span style={{ color: '#FFE08A', fontWeight: 700 }}>WhatsApp</span><br />
               +91 99943 33728<br />+91 91710 70722</p>
             <p className="mt-2"><span style={{ color: '#FFE08A', fontWeight: 700 }}>Email</span><br />
-              ss@ssrkcollections.com</p>
+              ssrktrendingcollections@gmail.com</p>
           </div>
         </div>
       </div>

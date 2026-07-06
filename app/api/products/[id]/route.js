@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   const product = await Product.findOne({
     ...getFilter(params.id),
     isActive: true,
-  }).populate('category', 'name slug sizes');
+  }).populate('category', 'name slug sizes type'); // added type
 
   if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
@@ -27,7 +27,8 @@ export async function GET(req, { params }) {
     isActive: true,
   })
     .limit(8)
-    .select('name slug basePrice variants rating');
+    .select('name slug basePrice variants rating')
+    .populate('category', 'name slug type'); // so ProductCard in "related" grid also knows type
 
   return NextResponse.json({ product, reviews, related });
 }

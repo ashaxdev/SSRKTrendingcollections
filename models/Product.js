@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const VariantSchema = new mongoose.Schema(
   {
-    color: { type: String, required: true },
+    color: { type: String, default: '' },
     colorHex: { type: String, default: '#000000' },
     images: [{ type: String }],
     price: { type: Number, required: true },

@@ -51,7 +51,7 @@ export async function GET(req) {
 
   const [products, total] = await Promise.all([
     Product.find(query)
-      .populate('category', 'name slug')
+      .populate('category', 'name slug type') // added type
       .sort(sortMap[sort] || sortMap.newest)
       .skip((page - 1) * limit)
       .limit(limit),

@@ -45,6 +45,7 @@ export default function AdminProductsPage() {
               <tr className="text-left border-b border-brand-ink/10 text-brand-ink/50">
                 <th className="p-3">Product</th>
                 <th className="p-3">Category</th>
+                {/* <th className="p-3">Type</th> */}
                 <th className="p-3">Price</th>
                 <th className="p-3">Variants</th>
                 <th className="p-3">Status</th>
@@ -56,6 +57,17 @@ export default function AdminProductsPage() {
                 <tr key={p._id} className="border-b border-brand-ink/5">
                   <td className="p-3 font-medium">{p.name}</td>
                   <td className="p-3 text-brand-ink/60">{p.category?.name}</td>
+                  {/* <td className="p-3">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs capitalize ${
+                        p.category?.type === 'jewellery'
+                          ? 'bg-brand-gold/15 text-brand-magenta'
+                          : 'bg-brand-ink/10 text-brand-ink/50'
+                      }`}
+                    >
+                      {p.category?.type || 'clothing'}
+                    </span>
+                  </td> */}
                   <td className="p-3">{formatINR(p.basePrice)}</td>
                   <td className="p-3">{p.variants?.length}</td>
                   <td className="p-3">

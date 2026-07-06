@@ -1,56 +1,89 @@
 'use client';
 
-export default function ColorSizeSelector({ variants, activeVariant, onColorChange, activeSize, onSizeChange }) {
+export default function ColorSizeSelector({ variants, activeVariant, onColorChange, activeSize, onSizeChange, categoryType }) {
+  const isJewellery = categoryType === 'jewellery';
   const sizeStock = (size) => activeVariant?.sizes?.find((s) => s.size === size)?.stock ?? 0;
+
+  // If every variant has a blank color, there's nothing meaningful to pick between —
+  // skip the color swatches entirely (common for single-material jewellery listings).
+  const hasColors = variants?.some((v) => v.color && v.color.trim());
 
   return (
     <div className="space-y-5 p-4 rounded-xl" style={{ background: '#FAF7F2', border: '1px solid #EDE0C4' }}>
 
       {/* Color selector */}
-      <div>
-        <p className="text-sm font-bold mb-2.5 flex items-center gap-1.5" style={{ color: '#3a1a1a' }}>
-          <span className="inline-block w-0.5 h-3.5 rounded-sm" style={{ background: '#C9A84C' }} />
-          Color:{' '}
-          <span style={{ color: '#8B1A1A' }}>{activeVariant?.color}</span>
-        </p>
+      {hasColors && (
+        <>
+          <div>
+            <p className="text-sm font-bold mb-2.5 flex items-center gap-1.5" style={{ color: '#3a1a1a' }}>
+              <span className="inline-block w-0.5 h-3.5 rounded-sm" style={{ background: '#C9A84C' }} />
+              {isJewellery ? 'Material/Colour:' : 'Color:'}{' '}
+              <span style={{ color: '#8B1A1A' }}>{activeVariant?.color}</span>
+            </p>
 
-        <div className="flex gap-2 flex-wrap">
-          {variants.map((v) => (
-            <button
-              key={v._id}
-              onClick={() => onColorChange(v)}
-              title={v.color}
-              className="relative w-9 h-9 rounded-full transition-transform"
-              style={{
-                backgroundColor: v.colorHex || '#ccc',
-                border: activeVariant?._id === v._id
-                  ? '2px solid #C9A84C'
-                  : '2px solid transparent',
-                boxShadow: activeVariant?._id === v._id
-                  ? '0 0 0 2px #8B1A1A'
-                  : 'none',
-                transform: activeVariant?._id === v._id ? 'scale(1.15)' : 'scale(1)',
-              }}
-            >
-              {activeVariant?._id === v._id && (
-                <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-black"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                  ✓
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+            <div className="flex gap-2 flex-wrap">
+              {variants.map((v) => (
+                <button
+                  key={v._id}
+                  onClick={() => onColorChange(v)}
+                  title={v.color}
+                  className="relative w-9 h-9 rounded-full transition-transform"
+                  style={{
+                    backgroundColor: v.colorHex || '#ccc',
+                    border: activeVariant?._id === v._id
+                      ? '2px solid #C9A84C'
+                      : '2px solid transparent',
+                    boxShadow: activeVariant?._id === v._id
+                      ? '0 0 0 2px #8B1A1A'
+                      : 'none',
+                    transform: activeVariant?._id === v._id ? 'scale(1.15)' : 'scale(1)',
+                  }}
+                >
+                  {activeVariant?._id === v._id && (
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-black"
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Divider */}
-      <div style={{ height: '0.5px', background: '#EDE0C4' }} />
+          {/* Divider */}
+          <div style={{ height: '0.5px', background: '#EDE0C4' }} />
+        </>
+      )}
+
+      {/* Jewellery attribute chips (material / purity / weight) — shown per active variant */}
+      {isJewellery && (activeVariant?.material || activeVariant?.purity || activeVariant?.weight > 0) && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {activeVariant?.material && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#fff', border: '1.5px solid #C9A84C', color: '#8B1A1A' }}>
+                {activeVariant.material}
+              </span>
+            )}
+            {activeVariant?.purity && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#fff', border: '1.5px solid #C9A84C', color: '#8B1A1A' }}>
+                {activeVariant.purity}
+              </span>
+            )}
+            {activeVariant?.weight > 0 && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#fff', border: '1.5px solid #C9A84C', color: '#8B1A1A' }}>
+                {activeVariant.weight}g
+              </span>
+            )}
+          </div>
+          <div style={{ height: '0.5px', background: '#EDE0C4' }} />
+        </>
+      )}
 
       {/* Size selector */}
       <div>
         <p className="text-sm font-bold mb-2.5 flex items-center gap-1.5" style={{ color: '#3a1a1a' }}>
           <span className="inline-block w-0.5 h-3.5 rounded-sm" style={{ background: '#C9A84C' }} />
-          Size:
+          {isJewellery ? 'Ring/Bangle Size:' : 'Size:'}
         </p>
 
         <div className="flex gap-2 flex-wrap">

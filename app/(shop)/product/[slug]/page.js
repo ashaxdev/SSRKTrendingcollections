@@ -244,12 +244,13 @@ export default function ProductPage() {
           {/* Color + Size */}
           <div className="mt-5">
             <ColorSizeSelector
-              variants={product.variants}
-              activeVariant={activeVariant}
-              onColorChange={handleColorChange}
-              activeSize={activeSize}
-              onSizeChange={handleSizeChange}
-            />
+  variants={product.variants}
+  activeVariant={activeVariant}
+  onColorChange={handleColorChange}
+  activeSize={activeSize}
+  onSizeChange={handleSizeChange}
+  categoryType={product.category?.type}   // NEW
+/>
           </div>
 
           {/* Qty */}
