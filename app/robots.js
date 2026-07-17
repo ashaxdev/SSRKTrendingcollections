@@ -1,5 +1,5 @@
 export default function robots() {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ssrktrendingcollection.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ssrktrendingcollections.com';
   return {
     rules: [
       { userAgent: '*', allow: '/', disallow: ['/admin', '/api'] }
