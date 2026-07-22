@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import ProductCard from './ProductCard';
 
 const TABS = [
@@ -81,6 +82,28 @@ export default function ProductTabs({ bestSellers, topSellers, activeSellers }) 
         {products.map((p) => (
           <ProductCard key={p._id} product={p} />
         ))}
+      </div>
+      <div className="mt-12 flex justify-center">
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          style={{
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 13,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: '#FBF7F0',
+            background: '#9E3A1C',
+            padding: '12px 28px',
+            borderRadius: 10,
+            outlineColor: '#C9962B',
+            transition: 'background 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#7E2E15')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#9E3A1C')}
+        >
+          Shop Now
+        </Link>
       </div>
     </section>
   );
